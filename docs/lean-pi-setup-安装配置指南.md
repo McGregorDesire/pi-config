@@ -13,7 +13,7 @@
 
 ## 一、结论速览
 
-README 共列出 11 类组件。本机情况：**5 项已装、6 项未装**（其中 4 项已由等价方案覆盖）。
+README 共列出 11 类组件。本机情况：**6 项已装、5 项未装**（其中 3 项已由等价方案覆盖）。
 
 | # | README 组件 | 状态 | 本机实际实现 |
 |---|---|---|---|
@@ -22,7 +22,7 @@ README 共列出 11 类组件。本机情况：**5 项已装、6 项未装**（�
 | 3 | Headroom / noheadroom | ✅ 已装 | `npm:@raquezha/noheadroom` (`0.3.2`) + `headroom` CLI (`0.37.0`)，代理健康 |
 | 4 | RTK + `pi-rtk-optimizer` | ✅ 已装 | `rtk 0.49.0`（Homebrew）+ `npm:pi-rtk-optimizer` (`0.9.0`) |
 | 5 | `pi-context-view` | ✅ 已装 | `npm:pi-context-view` (`0.5.2`) |
-| 6 | `pi-subagents-lean` | ❌ 未装 | 已用 **`pi-interactive-subagents` 3.7.2**（另一种上游实现）替代 |
+| 6 | `pi-subagents-lean` | ✅ 已装 | `git:github.com/McGregorDesire/pi-subagents-lean` (`0.19.0`) |
 | 7 | `pi-web-access-lean` | ❌ 未装 | 已用**本地扩展** `web-search/` + `web-fetch/` 替代 |
 | 8 | `pi-hashline-edit-pro-lean` | ❌ 未装 | 无替代，仍用 Pi 内置 `read`/`edit` |
 | 9 | `rpiv-ask-user-question-lean` | ❌ 未装 | 已用**本地扩展** `extensions/ask-user-question.ts` 替代 |
@@ -36,12 +36,12 @@ README 共列出 11 类组件。本机情况：**5 项已装、6 项未装**（�
 {
   "packages": [
     "npm:pi-cache-graph",
-    "git:git@github.com:McGregorDesire/pi-interactive-subagents.git",
     "npm:pi-context-view",
     "npm:pi-slim",
     "npm:pi-rtk-optimizer",
     "npm:@raquezha/noheadroom",
-    "git:github.com/kunkun9527/billion-context-pi-lean"
+    "git:github.com/kunkun9527/billion-context-pi-lean",
+    "git:github.com/McGregorDesire/pi-subagents-lean"
   ],
   "lastChangelogVersion": "0.85.1",
   "theme": "dark",
@@ -280,35 +280,51 @@ pi install npm:pi-context-view
 
 ## 四、未安装组件（完整安装方法）
 
-以下 6 项本机未安装。安装前请先看 **第八节冲突清单**，避免重复注册工具。
+以下 5 项本机未安装。安装前请先看 **第八节冲突清单**，避免重复注册工具。
 
-### 6. `pi-subagents-lean` ❌（已有替代方案）
+### 6. `pi-subagents-lean` ✅
 
 **README 方案**：基于 `@tintinweb/pi-subagents@0.19.0`，单一 `subagent` 工具，268 tokens。
 
 ```bash
+# 本机采用你的 fork 安装
+pi install git:github.com/McGregorDesire/pi-subagents-lean
+
+# 上游 npm 方式
 pi install npm:@ssk_dev/pi-subagents-lean
-# 或
-pi install git:github.com/kunkun9527/pi-subagents-lean
 ```
 
-**本机现状**：已装 `pi-interactive-subagents 3.7.2`（上游 `HazAT/pi-interactive-subagents`，经 `McGregorDesire` fork 的 git 源）。二者是**不同上游**，工具集也不同：
-
-| 项目 | `pi-interactive-subagents`（本机已装） | `pi-subagents-lean`（未装） |
-|---|---|---|
-| 工具 | `subagent`、`subagent_interrupt`、`subagents_list`、`subagent_resume` | 单一 `subagent` |
-| 运行方式 | 终端复用器 pane（Herdr/cmux/tmux/zellij/WezTerm）异步运行 | 后台运行 + steering |
-| 命令 | `/plan`、`/iterate`、`/subagent` | — |
-| 上游依赖 | `HazAT/pi-interactive-subagents` | `@tintinweb/pi-subagents@0.19.0` |
-
-**建议**：保留现有 `pi-interactive-subagents`。若改用 lean 版，必须先 `pi remove git:git@github.com:McGregorDesire/pi-interactive-subagents.git`，否则重复注册 `subagent` 工具。
-
-**依赖**：`pi-interactive-subagents` 需在 Herdr/cmux/tmux/zellij/WezTerm 内启动 Pi：
+**本机现状**：已用 `pi-subagents-lean` 替换原来的 `pi-interactive-subagents 3.7.2`。旧包已执行：
 
 ```bash
-tmux new -A -s pi 'pi'
-# 或 zellij --session pi 后运行 pi
-# 可选：export PI_SUBAGENT_MUX=herdr|cmux|tmux|zellij|wezterm
+pi remove git:git@github.com:McGregorDesire/pi-interactive-subagents.git
+```
+
+**工具接口**：只注册单一 `subagent` 工具，操作通过 `op` 区分，包括 `run` / `result` / `steer` / `workflow` / `help`。
+
+```json
+{
+  "op": "run",
+  "prompt": "Find the implementation of the cache key.",
+  "description": "Locate cache key",
+  "subagent_type": "Explore",
+  "run_in_background": true
+}
+```
+
+| 项目 | 原 `pi-interactive-subagents` | 当前 `pi-subagents-lean` |
+|---|---|---|
+| 工具 | `subagent`、`subagent_interrupt`、`subagents_list`、`subagent_resume` | 单一 `subagent` |
+| 运行方式 | 终端复用器 pane（Herdr/cmux/tmux/zellij/WezTerm）异步运行 | `@tintinweb/pi-subagents` 后台运行与 steering |
+| 命令 | `/plan`、`/iterate`、`/subagent` | 无需依赖这些 slash 命令 |
+| 上游依赖 | `HazAT/pi-interactive-subagents` | `@tintinweb/pi-subagents@0.19.0` |
+
+**验证**：`pi list | grep pi-subagents-lean`；新开 Pi 会话后确认只出现一个 `subagent` 工具。
+
+**卸载**：
+
+```bash
+pi remove git:github.com/McGregorDesire/pi-subagents-lean
 ```
 
 ### 7. `pi-web-access-lean` ❌（已有替代方案）
@@ -439,7 +455,7 @@ curl -fsSL https://raw.githubusercontent.com/McGregorDesire/my-lean-pi-setup/mai
 
 **验证**：`ls -l ~/.pi/agent/AGENTS.md`；会话内 `/context injections` 应能看到 instruction files 占位。
 
-**⚠️ 必须改的部分**：模板中的 `Subagents Delegation` 章节默认写的是 `Explore` / `Plan` / `general-purpose`，与本机已装的 `pi-interactive-subagents`（`planner`/`scout`/`worker`/`reviewer`/`visual-tester`）**不匹配**，需自行替换。
+**⚠️ 必须核对的部分**：模板中的 `Subagents Delegation` 章节默认写的是 `Explore` / `Plan` / `general-purpose`。这与当前 `pi-subagents-lean` 的上游内置 agent 类型基本一致；如果你后续添加自定义 agent，仍需按实际名称调整。
 
 **前置推荐**（本机已完成）：
 
@@ -624,7 +640,7 @@ pi remove npm:pi-slim
 pi remove npm:pi-rtk-optimizer
 pi remove npm:@raquezha/noheadroom
 pi remove git:github.com/kunkun9527/billion-context-pi-lean
-pi remove git:git@github.com:McGregorDesire/pi-interactive-subagents.git
+pi remove git:github.com/McGregorDesire/pi-subagents-lean
 
 # CLI 工具
 brew uninstall rtk

@@ -43,12 +43,12 @@ Pi 的全局配置目录是：
 {
   "packages": [
     "npm:pi-cache-graph",
-    "git:git@github.com:McGregorDesire/pi-interactive-subagents.git",
     "npm:pi-context-view",
     "npm:pi-slim",
     "npm:pi-rtk-optimizer",
     "npm:@raquezha/noheadroom",
-    "git:github.com/kunkun9527/billion-context-pi-lean"
+    "git:github.com/kunkun9527/billion-context-pi-lean",
+    "git:github.com/McGregorDesire/pi-subagents-lean"
   ],
   "lastChangelogVersion": "0.85.1",
   "theme": "dark",
@@ -73,7 +73,7 @@ cp /path/to/pi-config/settings.json ~/.pi/agent/settings.json
 | 包 | 版本 | 用途 | 额外配置 |
 |---|---:|---|---|
 | `npm:pi-cache-graph` | `1.0.2` | 查看上下文缓存命中率、累计命中率和 token 统计 | 无 |
-| `git:git@github.com:McGregorDesire/pi-interactive-subagents.git` | `3.7.2` | 在 tmux 等复用器中运行交互式 subagent | 无 |
+| `git:github.com/McGregorDesire/pi-subagents-lean` | `0.19.0` | 精简 subagent 封装，单一 `subagent` 工具 | 无 |
 | `npm:pi-context-view` | `0.5.2` | 查看上下文使用量、注入项和配置 | `extensions/pi-context-view.json` |
 | `npm:pi-slim` | `0.2.1` | 移除默认 Pi 文档提示，减少上下文 token | 无 |
 | `npm:pi-rtk-optimizer` | `0.9.0` | 自动调用 RTK 改写 bash 输出并做输出压缩 | `extensions/pi-rtk-optimizer/config.json` |
@@ -84,12 +84,12 @@ cp /path/to/pi-config/settings.json ~/.pi/agent/settings.json
 
 ```bash
 pi install npm:pi-cache-graph
-pi install git:git@github.com:McGregorDesire/pi-interactive-subagents.git
 pi install npm:pi-context-view
 pi install npm:pi-slim
 pi install npm:pi-rtk-optimizer
 pi install npm:@raquezha/noheadroom
 pi install git:github.com/kunkun9527/billion-context-pi-lean
+pi install git:github.com/McGregorDesire/pi-subagents-lean
 ```
 
 安装后验证：
@@ -105,7 +105,7 @@ pi list
 | cache graph | `/cache graph` | 三种缓存统计视图 |
 | cache graph | `/cache stats` | 查看统计 |
 | cache graph | `/cache export` | 导出 CSV 到项目根目录 |
-| interactive subagents | `/plan`、`/iterate`、`/subagent` | 需要可用的 tmux、cmux、zellij、Herdr 或 WezTerm 复用器 |
+| pi-subagents-lean | `subagent` | `op` 支持 `run`、`result`、`steer`、`workflow`、`help` |
 | context view | `/context`、`/context usage` | 查看上下文使用情况 |
 | context view | `/context injections` | 查看注入内容 |
 | context view | `/context config` | 查看颜色配置 |
@@ -129,7 +129,7 @@ Pi 实际从 `~/.pi/agent/extensions/` 加载扩展。当前有效的自定义�
 | `web-fetch/` | 抓取网页、PDF 并转换为 Markdown | 已纳入仓库 | 复制并 `npm install` |
 | `web-search/` | Google Custom Search API 搜索 | 已纳入仓库 | 复制并配置凭据 |
 
-仓库中的 `interactive-subagents/` 和 `observational-memory/` 只有说明性 README，它们不是当前实际加载的本地扩展。真正的 interactive subagents 由第 3 节的 Pi 包提供；observational memory 当前没有安装。
+仓库中的 `interactive-subagents/` 和 `observational-memory/` 只有说明性 README，它们不是当前实际加载的本地扩展。当前 subagent 功能由第 3 节的 `pi-subagents-lean` Pi 包提供；observational memory 当前没有安装。
 
 ### 4.1 复制扩展源码
 
@@ -679,7 +679,7 @@ cd ~/.pi/agent/extensions/web-fetch && npm ci
 | browser 工具不可见 | 先运行 `/browser on`，确认 Chromium 已安装 |
 | web-search 没有结果 | `auth.json` 或 `GOOGLE_SEARCH_API_KEY`/`GOOGLE_CSE_ID` |
 | bash-guard 无弹窗 | 是否处于无 UI 模式、是否启用了 disabled flag |
-| subagent 无法启动 | 是否在 tmux、cmux、zellij、Herdr 或 WezTerm 中运行 Pi |
+| subagent 无法启动 | 检查 `pi-subagents-lean` 是否已安装；调用 `subagent` 的 `help` 查看当前可用参数与 agent 类型 |
 | 模型不可用 | 检查 `models.json` 的 provider、endpoint、key 和文件权限 |
 
 ## 10. 不要迁移的内容
