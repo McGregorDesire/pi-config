@@ -59,29 +59,29 @@ function analyzeSegment(seg: Token[]): Risk | null {
 
 	// Shell redirection / pipes are handled on the whole command, but keep some segment checks too.
 	if (ops.includes("|") && (args.includes("sh") || args.includes("bash") || args.includes("zsh") || args.includes("fish"))) {
-		reasons.push("pipe to a shell (possible remote code execution)");
+		reasons.push("管道传入 Shell，可能导致远程代码执行");
 		severity = "high";
 	}
 
 	// sudo
 	if (cmd === "sudo") {
-		reasons.push("sudo (elevated privileges)");
+		reasons.push("sudo，需要提升权限");
 		severity = "high";
 	}
 
 	// rm/rmdir/unlink
 	if (cmd === "rm" || cmd === "rmdir" || cmd === "unlink") {
 		severity = "high";
-		reasons.push(`${cmd} (file deletion)`);
-		if (rest.some((a) => a.includes("-r") || a.includes("-R"))) reasons.push("recursive delete (-r/-R)");
-		if (rest.some((a) => a.includes("-f"))) reasons.push("forced delete (-f)");
-		if (ops.includes("glob")) reasons.push("glob pattern expansion (may delete many files)");
+		reasons.push(`${cmd}，删除文件`);
+		if (rest.some((a) => a.includes("-r") || a.includes("-R"))) reasons.push("递归删除（-r/-R）");
+		if (rest.some((a) => a.includes("-f"))) reasons.push("强制删除（-f）");
+		if (ops.includes("glob")) reasons.push("通配符展开，可能影响多个文件");
 	}
 
 	// find -delete
 	if (cmd === "find" && rest.includes("-delete")) {
 		severity = "high";
-		reasons.push("find -delete (bulk deletion)");
+		reasons.push("find -delete，批量删除文件");
 	}
 
 	// git operations (prompt on ANY git command)
@@ -90,48 +90,48 @@ function analyzeSegment(seg: Token[]): Risk | null {
 		const subArgs = rest.slice(1);
 
 		// Always prompt for git commands (user requested). Keep severity medium unless an explicit high-risk pattern is detected.
-		reasons.push(sub ? `git ${sub} (git command)` : "git (git command)");
+		reasons.push(sub ? `git ${sub}，Git 命令` : "git，Git 命令");
 
 		if (sub === "rm") {
 			severity = "high";
-			reasons.push("git rm (deletes files from working tree and stages deletions)");
+			reasons.push("git rm，删除工作区文件并暂存删除操作");
 		}
 		if (sub === "clean" && (subArgs.some((a) => a.includes("-f")) || subArgs.includes("-d") || subArgs.includes("-x"))) {
 			severity = "high";
-			reasons.push("git clean (can delete untracked files)");
+			reasons.push("git clean，可能删除未跟踪文件");
 		}
 		if (sub === "reset" && subArgs.includes("--hard")) {
 			severity = "high";
-			reasons.push("git reset --hard (discard changes)");
+			reasons.push("git reset --hard，会丢弃修改");
 		}
 		if ((sub === "checkout" || sub === "restore") && (subArgs.includes(".") || subArgs.includes("--") || subArgs.includes("--source"))) {
 			severity = severity === "high" ? "high" : "medium";
-			reasons.push("git checkout/restore (can overwrite working tree)");
+			reasons.push("git checkout/restore，可能覆盖工作区");
 		}
 		if (sub === "push" && (subArgs.includes("--force") || subArgs.includes("--force-with-lease") || subArgs.includes("-f"))) {
 			severity = "high";
-			reasons.push("git push --force (rewrite remote history)");
+			reasons.push("git push --force，会重写远程历史");
 		}
 		if (sub === "reflog" && subArgs.includes("expire")) {
 			severity = "high";
-			reasons.push("git reflog expire (can remove recovery history)");
+			reasons.push("git reflog expire，可能删除恢复记录");
 		}
 		if (sub === "gc" && subArgs.some((a) => a.startsWith("--prune"))) {
 			severity = "high";
-			reasons.push("git gc --prune (can permanently delete objects)");
+			reasons.push("git gc --prune，可能永久删除 Git 对象");
 		}
 	}
 
 	// truncate
 	if (cmd === "truncate") {
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push("truncate (in-place size change, can erase contents)");
+		reasons.push("truncate，直接修改文件大小，可能清空内容");
 	}
 
 	// dd of=
 	if (cmd === "dd" && (anyArgStartsWith(rest, "of=") || rest.includes("of"))) {
 		severity = "high";
-		reasons.push("dd with output file/device (can overwrite data)");
+		reasons.push("dd 指定输出文件或设备，可能覆盖数据");
 	}
 
 	// Disk / volume management (prompt aggressively; high risk)
@@ -139,91 +139,91 @@ function analyzeSegment(seg: Token[]): Risk | null {
 	// macOS: diskutil, hdiutil, gpt, newfs_*, asr
 	if (cmd.startsWith("mkfs")) {
 		severity = "high";
-		reasons.push("mkfs (filesystem formatting)");
+		reasons.push("mkfs，格式化文件系统");
 	}
 	if (cmd.startsWith("newfs_")) {
 		severity = "high";
-		reasons.push("newfs_* (filesystem formatting)");
+		reasons.push("newfs_*，格式化文件系统");
 	}
 	if (cmd === "wipefs") {
 		severity = "high";
-		reasons.push("wipefs (disk signature wipe)");
+		reasons.push("wipefs，擦除磁盘签名");
 	}
 	if (cmd === "diskutil") {
 		severity = "high";
-		reasons.push("diskutil (disk management command)");
+		reasons.push("diskutil，磁盘管理命令");
 		if (rest.includes("eraseDisk") || rest.includes("eraseVolume")) {
-			reasons.push("diskutil erase (destructive disk operation)");
+			reasons.push("diskutil erase，破坏性磁盘操作");
 		}
 	}
 	if (cmd === "hdiutil") {
 		severity = "high";
-		reasons.push("hdiutil (disk image management command)");
+		reasons.push("hdiutil，磁盘镜像管理命令");
 	}
 	if (cmd === "gpt") {
 		severity = "high";
-		reasons.push("gpt (partition table manipulation)");
+		reasons.push("gpt，修改分区表");
 	}
 	if (cmd === "asr") {
 		severity = "high";
-		reasons.push("asr (Apple Software Restore; can overwrite volumes)");
+		reasons.push("asr，Apple Software Restore，可能覆盖卷");
 	}
 	if (cmd === "parted" || cmd === "fdisk" || cmd === "gdisk" || cmd === "sgdisk") {
 		severity = "high";
-		reasons.push(`${cmd} (disk/partition management)`);
+		reasons.push(`${cmd}，磁盘/分区管理`);
 	}
 	if (cmd === "lsblk") {
 		// Usually read-only, but still disk-related; prompt as requested.
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push("lsblk (disk listing)");
+		reasons.push("lsblk，列出磁盘信息");
 	}
 	if (cmd === "cryptsetup") {
 		severity = "high";
-		reasons.push("cryptsetup (disk encryption management)");
+		reasons.push("cryptsetup，磁盘加密管理");
 	}
 	if (cmd === "pvcreate" || cmd === "vgcreate" || cmd === "lvcreate") {
 		severity = "high";
-		reasons.push(`${cmd} (LVM volume management)`);
+		reasons.push(`${cmd}，LVM 卷管理`);
 	}
 	if (cmd === "zpool") {
 		severity = "high";
-		reasons.push("zpool (ZFS pool management)");
+		reasons.push("zpool，ZFS 池管理");
 	}
 
 	// chmod/chown recursive
 	if (cmd === "chmod" && (rest.includes("-R") || rest.includes("--recursive"))) {
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push("chmod -R (recursive permission changes)");
+		reasons.push("chmod -R，递归修改权限");
 	}
 	if (cmd === "chown" && (rest.includes("-R") || rest.includes("--recursive"))) {
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push("chown -R (recursive ownership changes)");
+		reasons.push("chown -R，递归修改文件所有者");
 	}
 
 	// mv/cp overwriting
 	if (cmd === "mv" && (rest.includes("-f") || rest.includes("--force"))) {
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push("mv --force/-f (can overwrite files)");
+		reasons.push("mv --force/-f，可能覆盖文件");
 	}
 	if (cmd === "cp" && (rest.includes("-f") || rest.includes("--force"))) {
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push("cp --force/-f (can overwrite files)");
+		reasons.push("cp --force/-f，可能覆盖文件");
 	}
 
 	// sed/perl in-place
 	if (cmd === "sed" && (hasFlag(rest, "-i") || rest.includes("--in-place"))) {
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push("sed -i (in-place file modification)");
+		reasons.push("sed -i，直接修改文件内容");
 	}
 	if (cmd === "perl" && (rest.includes("-pi") || (rest.includes("-p") && rest.includes("-i")))) {
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push("perl -pi/-i (in-place file modification)");
+		reasons.push("perl -pi/-i，直接修改文件内容");
 	}
 
 	// kill/shutdown/systemctl
 	if (cmd === "kill" || cmd === "pkill" || cmd === "killall") {
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push(`${cmd} (process termination)`);
+		reasons.push(`${cmd}，终止进程`);
 		if (rest.includes("-9")) {
 			severity = "high";
 			reasons.push("SIGKILL (-9)");
@@ -231,35 +231,35 @@ function analyzeSegment(seg: Token[]): Risk | null {
 	}
 	if (cmd === "shutdown" || cmd === "reboot") {
 		severity = "high";
-		reasons.push(`${cmd} (system power operation)`);
+		reasons.push(`${cmd}，系统电源操作`);
 	}
 	if (cmd === "systemctl" && (rest.includes("stop") || rest.includes("disable"))) {
 		severity = severity === "high" ? "high" : "medium";
-		reasons.push("systemctl stop/disable (service disruption)");
+		reasons.push("systemctl stop/disable，可能导致服务中断");
 	}
 
 	// Remote execution patterns
 	if ((cmd === "curl" || cmd === "wget") && ops.includes("|")) {
 		severity = "high";
-		reasons.push("curl/wget piped (possible remote code execution)");
+		reasons.push("curl/wget 通过管道执行，可能导致远程代码执行");
 	}
 
 	// Infra deletes
 	if (cmd === "kubectl" && rest[0] === "delete") {
 		severity = "high";
-		reasons.push("kubectl delete (resource deletion)");
+		reasons.push("kubectl delete，删除资源");
 	}
 	if (cmd === "terraform" && rest[0] === "destroy") {
 		severity = "high";
-		reasons.push("terraform destroy (infrastructure teardown)");
+		reasons.push("terraform destroy，销毁基础设施");
 	}
 	if (cmd === "aws" && rest[0] === "s3" && rest[1] === "rm" && rest.includes("--recursive")) {
 		severity = "high";
-		reasons.push("aws s3 rm --recursive (bulk deletion)");
+		reasons.push("aws s3 rm --recursive，批量删除 S3 对象");
 	}
 	if (cmd === "gcloud" && rest.includes("delete")) {
 		severity = "high";
-		reasons.push("gcloud delete (resource deletion)");
+		reasons.push("gcloud delete，删除资源");
 	}
 
 	if (reasons.length === 0) return null;
@@ -272,7 +272,7 @@ function analyzeBashCommand(command: string): Risk | null {
 		tokens = shellParse(command) as Token[];
 	} catch {
 		// Fallback: if we can't parse, treat it as questionable
-		return { severity: "medium", reasons: ["unparsed shell command (unable to analyze safely)"] };
+		return { severity: "medium", reasons: ["无法解析的 Shell 命令，无法安全分析"] };
 	}
 
 	const reasons: string[] = [];
@@ -281,14 +281,14 @@ function analyzeBashCommand(command: string): Risk | null {
 	// Whole-command operator checks
 	const ops = tokens.filter(isOpToken).map((t) => t.op);
 	if (ops.some((op) => op === ">" || op === ">>" || op === "2>" || op === "2>>")) {
-		reasons.push("shell output redirection (can overwrite files)");
+		reasons.push("Shell 输出重定向，可能覆盖文件");
 		severity = severity === "high" ? "high" : "medium";
 	}
 	if (ops.includes("<")) {
-		reasons.push("shell input redirection (questionable)");
+		reasons.push("Shell 输入重定向，风险不明确");
 	}
 	if (ops.includes("|")) {
-		reasons.push("pipe operator (chained commands)");
+		reasons.push("管道操作符，存在链式命令");
 	}
 
 	// Segment analysis (split on &&, ||, ;)
@@ -310,8 +310,9 @@ async function promptRunOrAbort(ctx: any, command: string, risk: Risk): Promise<
 	if (!ctx.hasUI) return "abort";
 
 	const reasonsText = risk.reasons.map((r) => `• ${r}`).join("\n");
-	const header = `Command flagged as ${risk.severity.toUpperCase()} risk:`;
-	const body = `${header}\n\n${reasonsText}\n\nCommand:\n${command}`;
+	const riskIcon = risk.severity === "high" ? "🛑" : "⚠️";
+	const header = `${riskIcon} Command flagged as ${risk.severity.toUpperCase()} risk:`;
+	const body = `${header}\n\n${reasonsText}\n\n命令：\n${command}`;
 
 	const items: SelectItem[] = [
 		{ value: "run", label: "Run", description: "Execute the command" },
@@ -321,7 +322,7 @@ async function promptRunOrAbort(ctx: any, command: string, risk: Risk): Promise<
 	const choice = await ctx.ui.custom<"run" | "abort">((tui, theme, _kb, done) => {
 		const container = new Container();
 		container.addChild(new DynamicBorder((s: string) => theme.fg("warning", s)));
-		container.addChild(new Text(theme.fg("warning", theme.bold("Potentially destructive bash command")), 1, 0));
+		container.addChild(new Text(theme.fg("warning", theme.bold("可能具有破坏性的 Bash 命令")), 1, 0));
 		container.addChild(new Text(body, 1, 0));
 
 		const list = new SelectList(items, items.length, {
@@ -445,13 +446,13 @@ export default function (pi: ExtensionAPI) {
 
 	// Main session mode: interactive prompting.
 	pi.registerFlag("bash-guard-auto-allow", {
-		description: "If set, bash-guard will not block when no UI is available (non-interactive modes).",
+		description: "启用后，在没有用户界面的非交互模式下不阻止风险命令。",
 		type: "boolean",
 		default: false,
 	});
 
 	pi.registerFlag("bash-guard-disabled", {
-		description: "Start the session with bash-guard disabled (autonomous mode; hard-block floor still applies).",
+		description: "启动时禁用 bash-guard。自动运行模式下仍保留灾难性操作拦截。",
 		type: "boolean",
 		default: false,
 	});
@@ -472,7 +473,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("bash-guard", {
-		description: "Toggle bash-guard between interactive (default) and disabled (autonomous) for this session.",
+		description: "在交互式防护与禁用模式之间切换 bash-guard。",
 		handler: async (_args, ctx) => {
 			disabled = !disabled;
 			if (disabled) {
@@ -483,12 +484,12 @@ export default function (pi: ExtensionAPI) {
 				);
 				ctx.ui.setStatus(BASH_GUARD_STATUS_KEY, badge);
 				ctx.ui.notify(
-					"bash-guard DISABLED for this session. Catastrophic operations are still hard-blocked. Run /bash-guard again to re-enable.",
+					"bash-guard 已在本会话中禁用。灾难性操作仍会被拦截。再次运行 /bash-guard 可重新启用。",
 					"warning",
 				);
 			} else {
 				ctx.ui.setStatus(BASH_GUARD_STATUS_KEY, undefined);
-				ctx.ui.notify("bash-guard re-enabled.", "info");
+				ctx.ui.notify("bash-guard 已重新启用。", "info");
 			}
 		},
 	});
